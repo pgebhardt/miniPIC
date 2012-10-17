@@ -8,8 +8,11 @@ from scipy.interpolate import interp1d
 def main():
     # parameter
     length, dt, dx, electrodeArea = 0.05, 5e-11, 0.05 / 500, 2.0 * pi * sqrt(0.05)
-    grid, gridMids = linspace(0.0, length, length / dx + 1), linspace(0.5 * dx, length - 0.5 * dx, length / dx)
     particleCount, particleWeight = 1e5, 2e9
+    voltage = array([250.0, 0.0])
+
+    # init grid
+    grid, gridMids = linspace(0.0, length, length / dx + 1), linspace(0.5 * dx, length - 0.5 * dx, length / dx)
 
     # init particles
     electrons, ions = zeros((particleCount, 2)), zeros((particleCount, 2))
@@ -18,7 +21,6 @@ def main():
     chargeWeight = constants.elementary_charge * particleWeight / (dx * electrodeArea)
 
     # init poisson solver
-    voltage = array([250.0, 0.0])
     phi, roh = zeros((length / dx + 1, )), zeros((length / dx - 1, ))
     poisson = inv(toeplitz([2.0, -1.0] + [0.0] * (phi.shape[0] - 4))) * dx ** 2 / constants.epsilon_0
 
