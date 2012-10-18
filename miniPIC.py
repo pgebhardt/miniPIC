@@ -25,7 +25,7 @@ def main():
     poisson = inv(toeplitz([2.0, -1.0] + [0.0] * (phi.shape[0] - 4))) * dx ** 2 / constants.epsilon_0
 
     # pic cycle
-    for i in range(10000):
+    for i in range(100):
         # calc roh
         roh = chargeWeight * (histogram(ions[:, 0], grid)[0] - histogram(electrons[:, 0], grid)[0])
         for j in range(5):
@@ -33,12 +33,14 @@ def main():
 
         # calc field
         phi[0], phi[1:-1], phi[-1] = voltage[0], dot(poisson, 0.5 * (roh[:-1] + roh[1:])) + grid[1:-1] * (voltage[1] - voltage[0]) / length + voltage[0], voltage[1]
-        eField = interp1d(gridMids, -(phi[1:] - phi[:-1]) / dx, bounds_error=False, fill_value=0.0)
+        eField = interp1d(gridMids, -(phi[1:] - phi[:-1]) / dx, bounds_error=False)
+
+        # update speeds
+        electrons[:, 1] -= eField(electrons[:, 0]) * dt * constants.elementary_charge / constants.electron_mass
+        ions[:, 1] += eField(ions[:, 0]) * dt * constants.elementary_charge / (constants.neutron_mass * 16)
 
         # move particles
-        electrons[:, 1] -= eField(electrons[:, 0]) * dt * constants.elementary_charge / constants.electron_mass
         electrons[:, 0] += electrons[:, 1] * dt
-        ions[:, 1] += eField(ions[:, 0]) * dt * constants.elementary_charge / (constants.neutron_mass * 16)
         ions[:, 0] += ions[:, 1] * dt
 
         # print step
@@ -48,19 +50,23 @@ def main():
     # plot electic fiel
     subplot(221)
     plot(eField(gridMids))
+    title('Electical Field')
 
     # plot potential
     subplot(222)
     plot(phi)
+    title('Potential')
 
     # plot charge density
     subplot(223)
     plot(roh)
+    title('Charge density')
 
     # plot particle densit
     subplot(224)
     plot(histogram(ions[:, 0], grid)[0])
     plot(histogram(electrons[:, 0], grid)[0])
+    title('Ion and electron density')
 
     show()
 
