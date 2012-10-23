@@ -1,6 +1,6 @@
 from pylab import *
 from numpy.random import normal
-from scipy import constants
+from scipy.constants import *
 from scipy.linalg import toeplitz
 from scipy.signal import convolve
 from scipy.interpolate import interp1d
@@ -15,10 +15,8 @@ def main():
     grid, gridMids = linspace(0.0, length, length / dx + 1), linspace(0.5 * dx, length - 0.5 * dx, length / dx)
 
     # init particles
-    electrons, ions = zeros((particleCount, 2)), zeros((particleCount, 2))
-    electrons[:, 0], ions[:, 0] = normal(length / 2.0, length / 8.0, particleCount), normal(length / 2.0, length / 8.0, particleCount)
-    electrons[:, 1], ions[:, 1] = normal(0.0, 1000.0, particleCount), normal(0.0, 100.0, particleCount)
-    chargeWeight = constants.elementary_charge * particleWeight / (dx * electrodeArea)
+    species = [(-elementary_charge,electron_mass,vstack([normal(length / 2.0, length / 8.0, particleCount), normal(0.0, 1000.0, particleCount)]).T),
+               (+elementary_charge,16*neutron_mass,vstack([normal(length / 2.0, length / 8.0, particleCount), normal(0.0, 100.0, particleCount)]).T)]
 
     # init poisson solver
     phi, roh = zeros((length / dx + 1, )), zeros((length / dx - 1, ))
@@ -27,28 +25,22 @@ def main():
     plots = [['Electical Field',[lambda: eField(gridMids)],221],
              ['Potential',[lambda: phi],222],
              ['Charge density',[lambda: roh],223],
-             ['Ion and electron density',[
-                 lambda: histogram(ions[:,0],grid)[0],
-                 lambda: histogram(electrons[:,0],grid)[0]],224],]
+             ['Ion and electron density',[(lambda x: lambda: histogram(x[:,0],grid)[0])(p) for c,m,p in species],224]]
 
     # pic cycle
     for i in range(100):
         # calc roh
-        roh = chargeWeight * (histogram(ions[:, 0], grid)[0] - histogram(electrons[:, 0], grid)[0])
-        for j in range(5):
-            roh = convolve(roh, ones((20, )) / 20.0, 'same')
+        roh = particleWeight / (dx * electrodeArea) * reduce(add,[c*histogram(p[:, 0], grid)[0] for c,m,p in species])
+        for j in range(5): roh = convolve(roh, ones((20, )) / 20.0, 'same')
 
         # calc field
         phi[0], phi[1:-1], phi[-1] = voltage[0], dot(poisson, 0.5 * (roh[:-1] + roh[1:])) + grid[1:-1] * (voltage[1] - voltage[0]) / length + voltage[0], voltage[1]
         eField = interp1d(gridMids, -(phi[1:] - phi[:-1]) / dx, bounds_error=False)
 
-        # update speeds
-        electrons[:, 1] -= eField(electrons[:, 0]) * dt * constants.elementary_charge / constants.electron_mass
-        ions[:, 1] += eField(ions[:, 0]) * dt * constants.elementary_charge / (constants.neutron_mass * 16)
-
-        # move particles
-        electrons[:, 0] += electrons[:, 1] * dt
-        ions[:, 0] += ions[:, 1] * dt
+        # update speeds & move particles
+        for c,m,p in species:
+            p[:,1] += eField(p[:,0]) * dt * c / m
+            p[:,0] += p[:,1] * dt
 
         if not i:
             fig = figure()
