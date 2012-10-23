@@ -24,6 +24,13 @@ def main():
     phi, roh = zeros((length / dx + 1, )), zeros((length / dx - 1, ))
     poisson = inv(toeplitz([2.0, -1.0] + [0.0] * (phi.shape[0] - 4))) * dx ** 2 / constants.epsilon_0
 
+    plots = [['Electical Field',[lambda: eField(gridMids)],221],
+             ['Potential',[lambda: phi],222],
+             ['Charge density',[lambda: roh],223],
+             ['Ion and electron density',[
+                 lambda: histogram(ions[:,0],grid)[0],
+                 lambda: histogram(electrons[:,0],grid)[0]],224],]
+
     # pic cycle
     for i in range(100):
         # calc roh
@@ -43,32 +50,20 @@ def main():
         electrons[:, 0] += electrons[:, 1] * dt
         ions[:, 0] += ions[:, 1] * dt
 
+        if not i:
+            fig = figure()
+            for p in plots:
+                ax = fig.add_subplot(p[2])
+                ax.set_title(p[0])
+                p.append([ax.plot(f())[0] for f in p[1]])
+            ion(); show()
+
         # print step
-        if i % 100 == 0:
+        if not i % 10:
             print 'step: {}'.format(i)
-
-    # plot electic fiel
-    subplot(221)
-    plot(eField(gridMids))
-    title('Electical Field')
-
-    # plot potential
-    subplot(222)
-    plot(phi)
-    title('Potential')
-
-    # plot charge density
-    subplot(223)
-    plot(roh)
-    title('Charge density')
-
-    # plot particle densit
-    subplot(224)
-    plot(histogram(ions[:, 0], grid)[0])
-    plot(histogram(electrons[:, 0], grid)[0])
-    title('Ion and electron density')
-
-    show()
+            for p in plots:
+                for l,f in zip(p[3],p[1]): l.set_ydata(f())
+                fig.canvas.draw()
 
 if __name__ == '__main__':
     main()
